@@ -7,7 +7,11 @@ struct AdMobBannerView: UIViewRepresentable {
     let adUnitID: String
     
     init() {
-        self.adUnitID = ProcessInfo.processInfo.environment["ADMOB_AD_UNIT_ID"] ?? "ca-app-pub-3940256099942544/2934735716"
+        if let adUnitID = Bundle.main.infoDictionary?["AdUnitID"] as? String {
+            self.adUnitID = adUnitID
+        } else {
+            fatalError("AdUnitID not found in Info dictionary")
+        }
     }
     
     func makeUIView(context: Context) -> GADBannerView {

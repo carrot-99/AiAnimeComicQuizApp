@@ -20,9 +20,9 @@ struct ContentView: View {
                 }
                 .navigationViewStyle(StackNavigationViewStyle())
 
-//                AdMobBannerView()
-//                    .frame(width: UIScreen.main.bounds.width, height: 50)
-//                    .background(Color.gray.opacity(0.1))
+                AdMobBannerView()
+                    .frame(width: UIScreen.main.bounds.width, height: 50)
+                    .background(Color.gray.opacity(0.1))
             } else {
                 TermsAgreementView(isShowingTerms: $isShowingTerms, hasAgreedToTerms: $userSettings.hasAgreedToTerms)
             }
