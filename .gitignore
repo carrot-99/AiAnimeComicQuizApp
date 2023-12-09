@@ -1,0 +1,20 @@
+# ビルド生成物を無視
+build/
+DerivedData/
+
+# Xcodeの一時ファイルを無視
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS specific files
+.DS_Store
+
+# Xcode
+AiAnimeComicQuizApp.xcodeproj/
+AiAnimeComicQuizApp.xcworkspace/
+
+# CocoaPods
+Podfile
+Podfile.lock
+Pods/
