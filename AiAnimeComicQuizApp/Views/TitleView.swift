@@ -3,72 +3,73 @@
 import SwiftUI
 
 struct TitleView: View {
-    @Binding var isQuizActive: Bool
-    @Binding var isTitleViewActive: Bool
+    @EnvironmentObject private var router: AppRouter
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Image("TitleImage")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                
-                VStack(spacing: 20) {
-                    Spacer()
-                    createTitleText("AI", width: geometry.size.width)
-                    createTitleText("漫画&アニメ", width: geometry.size.width)
-                    createTitleText("QUIZ", width: geometry.size.width)
-                    Spacer()
-                    NavigationLink(destination: AnimeListView(isTitleViewActive: $isTitleViewActive, isQuizActive: $isQuizActive), isActive: $isQuizActive) {
-                        CustomButton(title: "START") {
-                            isQuizActive = true
-                            isTitleViewActive = false
-                        }
-                    }
-                    .accessibility(label: Text("クイズを開始"))
-                    
-                    legalLinksSection()
-                        .padding(.bottom, 10)
-                    
-                    Spacer()
-                        .frame(height: 50)
+        ZStack {
+            background
+
+            VStack(spacing: 12) {
+                Spacer()
+
+                titleText("AI", size: 72)
+                titleText("漫画&アニメ", size: 44)
+                titleText("QUIZ", size: 72)
+
+                Text("AIが作った問題で、好きな作品の知識を試そう")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+
+                Spacer()
+
+                CustomButton(title: "START", systemImage: "play.fill") {
+                    Haptics.tap()
+                    router.push(.animeList)
                 }
-                .padding()
-                .edgesIgnoringSafeArea(.all)
+                .accessibilityLabel(Text("クイズを開始"))
+                .padding(.horizontal, 8)
+
+                HStack(spacing: 24) {
+                    Button("利用規約") { router.push(.terms) }
+                    Button("プライバシーポリシー") { router.push(.privacyPolicy) }
+                }
+                .font(.footnote.weight(.medium))
+                .foregroundColor(.white.opacity(0.85))
+                .padding(.top, 8)
+                .padding(.bottom, 16)
             }
+            .padding(.horizontal, 24)
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func createTitleText(_ text: String, width: CGFloat) -> some View {
-        let fontSize = min(width / 5, 60)
-        return Text(text)
-            .font(.system(size: fontSize, weight: .bold, design: .rounded)) // フォントの変更
-            .foregroundColor(Color.white) // テキストの色を白に変更
-            .padding(5) // テキストの周りに余白を追加
-            .background(Color.black.opacity(0.5)) // 背景に半透明の黒色オーバーレイを追加
-            .cornerRadius(10) // 角を丸くする
-            .shadow(color: .black.opacity(0.7), radius: 10, x: 5, y: 5) // 影をより強調
+    private var background: some View {
+        GeometryReader { geometry in
+            Image("TitleImage")
+                .resizable()
+                .scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .overlay(
+                    LinearGradient(
+                        colors: [.black.opacity(0.15), .black.opacity(0.35), .black.opacity(0.75)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 
-    @ViewBuilder
-    private func legalLinksSection() -> some View {
-        HStack {
-            Spacer()
-            legalLink("利用規約", destination: TermsView())
-            Spacer()
-            legalLink("プライバシーポリシー", destination: PrivacyPolicyView())
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private func legalLink<T: View>(_ title: String, destination: T) -> some View {
-        NavigationLink(destination: destination) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.blue)
-        }
+    private func titleText(_ text: String, size: CGFloat) -> some View {
+        Text(text)
+            .font(.system(size: size, weight: .black, design: .rounded))
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .shadow(color: .black.opacity(0.6), radius: 8, x: 0, y: 4)
     }
 }

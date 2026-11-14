@@ -2,8 +2,16 @@
 
 import Foundation
 
-struct AnimeData {
-    static let animeTitles = [
+/// クイズ対象の作品。`id` は CSV ファイル名（quiz{id}.csv）と対応する。
+struct Anime: Identifiable, Hashable {
+    let id: Int
+    let title: String
+
+    var quizFileName: String { "quiz\(id)" }
+}
+
+enum AnimeData {
+    private static let titles = [
         "タコピーの原罪",
         "ONE PIECE",
         "鋼の錬金術師",
@@ -16,4 +24,6 @@ struct AnimeData {
         "SPYxFAMILY",
         "ボボボーボ・ボーボボ"
     ]
+
+    static let all: [Anime] = titles.enumerated().map { Anime(id: $0.offset + 1, title: $0.element) }
 }
