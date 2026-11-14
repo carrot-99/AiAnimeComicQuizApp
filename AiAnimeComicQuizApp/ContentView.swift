@@ -3,29 +3,42 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var isQuizActive = false
-    @State private var isTitleViewActive = true
-    @State private var isShowingTerms = true
     @StateObject private var userSettings = UserSettings()
+    @StateObject private var router = AppRouter()
+    @StateObject private var scoreStore = ScoreStore.shared
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        Group {
             if userSettings.hasAgreedToTerms {
-                NavigationView {
-                    if isTitleViewActive {
-                        TitleView(isQuizActive: $isQuizActive, isTitleViewActive: $isTitleViewActive)
-                    } else {
-                        AnimeListView(isTitleViewActive: $isTitleViewActive, isQuizActive: $isQuizActive)
-                    }
+                NavigationStack(path: $router.path) {
+                    TitleView()
+                        .navigationDestination(for: Route.self, destination: destination)
                 }
-                .navigationViewStyle(StackNavigationViewStyle())
-
-                AdMobBannerView()
-                    .frame(width: UIScreen.main.bounds.width, height: 50)
-                    .background(Color.gray.opacity(0.1))
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    BannerAdSlot()
+                }
+                .transition(.opacity)
             } else {
-                TermsAgreementView(isShowingTerms: $isShowingTerms, hasAgreedToTerms: $userSettings.hasAgreedToTerms)
+                TermsAgreementView {
+                    withAnimation { userSettings.hasAgreedToTerms = true }
+                }
             }
+        }
+        .environmentObject(router)
+        .environmentObject(scoreStore)
+    }
+
+    @ViewBuilder
+    private func destination(for route: Route) -> some View {
+        switch route {
+        case .animeList:
+            AnimeListView()
+        case .quiz(let anime):
+            QuizView(anime: anime)
+        case .terms:
+            TermsView()
+        case .privacyPolicy:
+            PrivacyPolicyView()
         }
     }
 }

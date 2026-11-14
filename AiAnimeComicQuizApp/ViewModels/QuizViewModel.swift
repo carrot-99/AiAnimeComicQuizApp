@@ -2,94 +2,101 @@
 
 import Foundation
 
-class QuizViewModel: ObservableObject {
-    @Published var currentQuestion: QuizQuestion?
-    @Published var currentQuestionIndex = 0
-    @Published var score = 0
-    @Published var navigateToScoreView = false
-    @Published var navigateToResult = false
-    @Published var showScoreView = false
-    @Published var isQuizActive = false
-    var selectedAnswer: Int?
-    var selectedOption: String?
-    private var quizDataManager = QuizDataManager()
-    private var questions: [QuizQuestion] = []
-    private var randomQuestions: [QuizQuestion] = []
-    
-    init(animeNumber: Int) {
-        loadQuestions(for: animeNumber)
-        generateRandomQuestionSet()
+@MainActor
+final class QuizViewModel: ObservableObject {
+    enum Phase: Equatable {
+        case playing
+        case finished
+        case empty
     }
 
-    func loadQuestions(for animeNumber: Int) {
-        questions = quizDataManager.loadQuestions(for: animeNumber)
-        randomizeQuestions()
-        generateRandomQuestionSet()
-    }
-    
-    func generateRandomQuestionSet() {
-        randomQuestions = Array(questions.shuffled().prefix(10)) // 最大10問に制限
+    struct AnswerRecord: Identifiable {
+        let question: QuizQuestion
+        let selectedIndex: Int
+
+        var id: UUID { question.id }
+        var isCorrect: Bool { question.isCorrect(selectedIndex) }
+        var selectedOption: String { question.options[selectedIndex] }
     }
 
-    func parseCSV(_ contents: String) {
-        let rows = contents.components(separatedBy: "\n")
-        for row in rows {
-            let columns = row.components(separatedBy: ",")
-            if columns.count == 6 {
-                let question = columns[0]
-                if let answer = Int(columns[1]) {
-                    let options = Array(columns[2...5])
-                    let quizQuestion = QuizQuestion(question: question, answer: answer, options: options)
-                    questions.append(quizQuestion)
-                }
-            }
-        }
-    }
-    
-    func randomizeQuestions() {
-        randomQuestions = questions.shuffled()
-        selectRandomQuestion()
+    static let questionsPerRound = 10
+
+    let anime: Anime
+
+    @Published private(set) var phase: Phase = .playing
+    @Published private(set) var questions: [QuizQuestion] = []
+    @Published private(set) var currentIndex = 0
+    /// 現在の問題で選んだ選択肢（未回答なら nil）
+    @Published private(set) var selectedIndex: Int?
+    @Published private(set) var answers: [AnswerRecord] = []
+    @Published private(set) var isNewBest = false
+
+    private let allQuestions: [QuizQuestion]
+    private let scoreStore: ScoreStore
+
+    init(anime: Anime, loader: QuizLoading = QuizDataManager(), scoreStore: ScoreStore = .shared) {
+        self.anime = anime
+        self.scoreStore = scoreStore
+        self.allQuestions = loader.loadQuestions(for: anime)
+        startNewRound()
     }
 
-    func selectRandomQuestion() {
-        if currentQuestionIndex < randomQuestions.count {
-            currentQuestion = randomQuestions[currentQuestionIndex]
+    // MARK: - State
+
+    var currentQuestion: QuizQuestion? {
+        questions.indices.contains(currentIndex) ? questions[currentIndex] : nil
+    }
+
+    var totalCount: Int { questions.count }
+    var score: Int { answers.filter(\.isCorrect).count }
+    var hasAnswered: Bool { selectedIndex != nil }
+    var isLastQuestion: Bool { currentIndex >= questions.count - 1 }
+    var mistakes: [AnswerRecord] { answers.filter { !$0.isCorrect } }
+
+    /// 回答済みの問題数を含めた進捗（0...1）
+    var progress: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(currentIndex + (hasAnswered ? 1 : 0)) / Double(totalCount)
+    }
+
+    var lastAnswerWasCorrect: Bool? {
+        guard let selectedIndex, let currentQuestion else { return nil }
+        return currentQuestion.isCorrect(selectedIndex)
+    }
+
+    // MARK: - Actions
+
+    func startNewRound() {
+        questions = allQuestions
+            .shuffled()
+            .prefix(Self.questionsPerRound)
+            .map { $0.withShuffledOptions() }
+        currentIndex = 0
+        selectedIndex = nil
+        answers = []
+        isNewBest = false
+        phase = questions.isEmpty ? .empty : .playing
+    }
+
+    func select(_ index: Int) {
+        guard phase == .playing, selectedIndex == nil, let question = currentQuestion,
+              question.options.indices.contains(index) else { return }
+        selectedIndex = index
+        answers.append(AnswerRecord(question: question, selectedIndex: index))
+    }
+
+    func next() {
+        guard hasAnswered else { return }
+        if isLastQuestion {
+            finish()
         } else {
-            showScoreView = true
+            currentIndex += 1
+            selectedIndex = nil
         }
-    }
-    
-    func selectAnswer(_ answer: Int) {
-        if let question = currentQuestion, answer < question.options.count {
-            selectedOption = question.options[answer]
-        }
-        selectedAnswer = answer + 1
-        if (answer + 1) == currentQuestion?.answer {
-            score += 1
-        }
-
-        navigateToResult = true
     }
 
-    func moveToNextQuestion() {
-        if currentQuestionIndex < randomQuestions.count - 1 {
-            currentQuestionIndex += 1
-            selectRandomQuestion()
-        } else {
-            showScoreView = true
-        }
-    }
-    
-    func resetQuiz() {
-        currentQuestionIndex = 0
-        score = 0
-        showScoreView = false
-        isQuizActive = false
-        selectRandomQuestion()
-    }
-    
-    func resetNavigation() {
-        isQuizActive = false
-        resetQuiz()
+    private func finish() {
+        isNewBest = scoreStore.save(score: score, total: totalCount, for: anime)
+        phase = .finished
     }
 }
